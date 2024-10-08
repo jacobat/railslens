@@ -1,3 +1,4 @@
+use textwrap;
 use ratatui::widgets::Wrap;
 use ratatui::text::Line as rtLine;
 use ratatui::widgets::Paragraph;
@@ -220,7 +221,15 @@ fn view(model: &mut Model, frame: &mut Frame) {
 
     frame.render_stateful_widget(&list, layout[0], &mut model.current_item);
 
-    let log_lines: Vec<rtLine> = model.current_lines().iter().map(|line| rtLine::from(line.text.clone())).collect();
+    let width: usize = layout[1].width.into();
+    let options = textwrap::Options::new(width)
+        .initial_indent("")
+        .subsequent_indent("        ");
+
+    let log_lines: Vec<rtLine> = model.current_lines().iter()
+        .flat_map(|line| textwrap::wrap(&line.text, &options))
+        .map(|line| rtLine::from(line.to_string()))
+        .collect();
     let para = Paragraph::new(log_lines).wrap(Wrap { trim: false });
     frame.render_widget(para, layout[1]);
 }
