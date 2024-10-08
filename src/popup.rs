@@ -1,17 +1,10 @@
 use derive_setters::Setters;
 use ratatui::{
-    backend::CrosstermBackend,
     buffer::Buffer,
-    crossterm::{
-        event::{self, Event},
-        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-        ExecutableCommand,
-    },
     layout::Rect,
-    style::{Style, Stylize},
+    style::Style,
     text::{Line, Text},
     widgets::{Block, Borders, Clear, Paragraph, Widget, Wrap},
-    Frame, Terminal,
 };
 
 #[derive(Debug, Default, Setters)]

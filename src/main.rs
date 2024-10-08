@@ -1,4 +1,3 @@
-use colored::Colorize;
 use crossterm::event;
 use crossterm::event::Event;
 use crossterm::event::KeyCode;
@@ -15,7 +14,6 @@ use ratatui::widgets::Wrap;
 use ratatui::Frame;
 use std::str::FromStr;
 use std::time::Duration;
-use textwrap;
 
 use regex::Regex;
 use std::collections::HashMap;
@@ -42,16 +40,12 @@ enum RunningState {
 
 #[derive(Default, Debug, Clone)]
 struct LogSet {
-    uuid: String,
-    time: String,
     lines: Vec<Line>,
 }
 
 impl LogSet {
     fn from_lines(lines: Vec<Line>) -> Self {
         Self {
-            uuid: "abc".to_string(),
-            time: "abc".to_string(),
             lines,
         }
     }
@@ -77,10 +71,6 @@ impl Model {
     fn current_lines(&self) -> Option<&Vec<Line>> {
         let current = self.current_item.selected();
         current.map(|n| &self.filtered_log_sets().get(n).unwrap().lines)
-    }
-
-    fn search(&mut self, key: String) {
-        self.filter.push_str(&key)
     }
 
     fn filtered_log_sets(&self) -> Vec<&LogSet> {
