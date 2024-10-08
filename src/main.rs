@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 use std::collections::HashMap;
+use regex::Regex;
 
 struct ParseLineError;
 
@@ -21,9 +22,10 @@ impl FromStr for Line {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let splits: Vec<&str> = s.split("[").collect();
         let time: Vec<&str> = splits[1].split(" ").collect();
-
+        let re: Regex = Regex::new(r"\[([0-9a-f]{32})\]").unwrap();
+        let (_, [uuid]) = re.captures(s).ok_or(ParseLineError)?.extract();
         Ok(Line {
-            uuid: splits[2][0..32].to_string(),
+            uuid: uuid.to_string(),
             time: time[0].to_string(),
             text: s.to_string()
         })
