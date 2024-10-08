@@ -52,11 +52,11 @@ fn main() {
         values.sort_by_key(|log| log[0].time.clone());
         values.into_iter().for_each(|lines| {
             let uuid = &lines[0].uuid;
-            let a = u8::from_str_radix(&uuid[0..=1], 16).unwrap();
-            let b = u8::from_str_radix(&uuid[2..=3], 16).unwrap();
-            let c = u8::from_str_radix(&uuid[4..=5], 16).unwrap();
+            let a = u8::from_str_radix(&uuid[0..=1], 16).unwrap().clamp(127, 255);
+            let b = u8::from_str_radix(&uuid[2..=3], 16).unwrap().clamp(127, 255);
+            let c = u8::from_str_radix(&uuid[4..=5], 16).unwrap().clamp(127, 255);
             for line in lines {
-                println!("{}", line.text.truecolor(255, b, c));
+                println!("{}", line.text.truecolor(a, b, c));
             }
         });
     }
