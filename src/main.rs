@@ -1,3 +1,8 @@
+use ratatui::widgets::Wrap;
+use ratatui::text::Line as rtLine;
+use ratatui::widgets::Paragraph;
+use ratatui::widgets::Borders;
+use ratatui::widgets::Block;
 use ratatui::prelude::*;
 use ratatui::style::Color;
 use ratatui::style::Style;
@@ -205,7 +210,9 @@ fn view(model: &mut Model, frame: &mut Frame) {
     let list = List::new(items)
         // .block(Block::bordered().title("List"))
         // .style(Style::default().fg(Color::White))
-        .highlight_style(Style::default().fg(Color::Black).bg(Color::White));
+        .highlight_style(Style::default().fg(Color::Black).bg(Color::White))
+        .block(Block::new().borders(Borders::BOTTOM));
+        // frame.render_widget(list, frame.area());
         // .highlight_symbol(">>");
         // .repeat_highlight_symbol(true)
         // .direction(ListDirection::BottomToTop);
@@ -213,9 +220,9 @@ fn view(model: &mut Model, frame: &mut Frame) {
 
     frame.render_stateful_widget(&list, layout[0], &mut model.current_item);
 
-    let log_lines = model.current_lines();
-    let log_lines = List::new(log_lines.clone().into_iter().map(|line| line.text));
-    frame.render_widget(log_lines, layout[1]);
+    let log_lines: Vec<rtLine> = model.current_lines().iter().map(|line| rtLine::from(line.text.clone())).collect();
+    let para = Paragraph::new(log_lines).wrap(Wrap { trim: false });
+    frame.render_widget(para, layout[1]);
 }
 
 // The output is wrapped in a Result to allow matching on errors.
