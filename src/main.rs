@@ -21,8 +21,18 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
+use clap::Parser;
+
 mod popup;
 mod tui;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Name of the person to greet
+    #[arg(short, long)]
+    file: String,
+}
 
 #[derive(Debug, Clone)]
 struct Line {
@@ -102,8 +112,8 @@ impl FromStr for Line {
     }
 }
 
-fn lines() -> Result<Vec<LogSet>, std::io::Error> {
-    let lines = read_lines("rails.log")?;
+fn lines(filename: &str) -> Result<Vec<LogSet>, std::io::Error> {
+    let lines = read_lines(filename)?;
 
     {
         let mut logs: HashMap<String, Vec<Line>> = HashMap::new();
@@ -207,10 +217,12 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
 }
 
 fn main() -> color_eyre::Result<()> {
+    let args = Args::parse();
+
     tui::install_panic_hook();
     let mut terminal = tui::init_terminal()?;
     let mut model = Model {
-        log_sets: lines().unwrap(),
+        log_sets: lines(&args.file).unwrap(),
         ..Default::default()
     };
     model.current_item.select_first();
