@@ -1,49 +1,50 @@
-use textwrap;
-use ratatui::widgets::Wrap;
-use ratatui::text::Line as rtLine;
-use ratatui::widgets::Paragraph;
-use ratatui::widgets::Borders;
-use ratatui::widgets::Block;
+use colored::Colorize;
+use crossterm::event;
+use crossterm::event::Event;
+use crossterm::event::KeyCode;
 use ratatui::prelude::*;
 use ratatui::style::Color;
 use ratatui::style::Style;
-use ratatui::widgets::ListState;
-use crossterm::event::KeyCode;
-use crossterm::event::Event;
-use std::time::Duration;
-use crossterm::event;
+use ratatui::text::Line as rtLine;
+use ratatui::widgets::Block;
+use ratatui::widgets::Borders;
 use ratatui::widgets::List;
+use ratatui::widgets::ListState;
+use ratatui::widgets::Paragraph;
+use ratatui::widgets::Wrap;
 use ratatui::Frame;
 use std::str::FromStr;
-use colored::Colorize;
+use std::time::Duration;
+use textwrap;
 
+use regex::Regex;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
-use std::collections::HashMap;
-use regex::Regex;
 
-mod tui;
 mod popup;
+mod tui;
 
 #[derive(Debug, Clone)]
 struct Line {
     uuid: String,
     time: String,
-    text: String
+    text: String,
 }
 
 #[derive(PartialEq, Default, Debug, Clone)]
 enum RunningState {
-    #[default] Run,
-    Done
+    #[default]
+    Run,
+    Done,
 }
 
 #[derive(Default, Debug, Clone)]
 struct LogSet {
     uuid: String,
     time: String,
-    lines: Vec<Line>
+    lines: Vec<Line>,
 }
 
 impl LogSet {
@@ -51,14 +52,15 @@ impl LogSet {
         Self {
             uuid: "abc".to_string(),
             time: "abc".to_string(),
-            lines 
+            lines,
         }
     }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 enum AppMode {
-    #[default] Normal,
+    #[default]
+    Normal,
     Search,
 }
 
@@ -72,9 +74,9 @@ struct Model {
 }
 
 impl Model {
-    fn current_lines(&self) -> &Vec<Line> {
-        let current = self.current_item.selected().unwrap();
-        &self.filtered_log_sets().get(current).unwrap().lines
+    fn current_lines(&self) -> Option<&Vec<Line>> {
+        let current = self.current_item.selected();
+        current.map(|n| &self.filtered_log_sets().get(n).unwrap().lines)
     }
 
     fn search(&mut self, key: String) {
@@ -82,18 +84,15 @@ impl Model {
     }
 
     fn filtered_log_sets(&self) -> Vec<&LogSet> {
-        self
-            .log_sets
+        self.log_sets
             .iter()
-            .filter(|l| l.lines.iter().any(|line|
-                line.text.contains(&self.filter)
-            ))
+            .filter(|l| l.lines.iter().any(|line| line.text.contains(&self.filter)))
             .collect()
     }
 }
 
 enum ParseError {
-    ParseLineError
+    ParseLineError,
 }
 
 type LineResult = Result<Line, ParseError>;
@@ -108,7 +107,7 @@ impl FromStr for Line {
         Ok(Line {
             uuid: uuid.to_string(),
             time: time[0].to_string(),
-            text: s.to_string()
+            text: s.to_string(),
         })
     }
 }
@@ -122,23 +121,18 @@ fn lines() -> Result<Vec<LogSet>, std::io::Error> {
         lines
             .map_while(Result::ok)
             .filter_map(|line| Line::from_str(&line).ok())
-            .for_each(|line|
-                {
-                    logs.entry(line.uuid.clone()).and_modify(|lines|
-                        lines.push(line.clone())
-                    ).or_insert_with(|| vec![line]);
-                }
-            );
+            .for_each(|line| {
+                logs.entry(line.uuid.clone())
+                    .and_modify(|lines| lines.push(line.clone()))
+                    .or_insert_with(|| vec![line]);
+            });
 
-        let mut values: Vec<&Vec<Line>> = logs
-            .values()
-            .collect();
+        let mut values: Vec<&Vec<Line>> = logs.values().collect();
 
         values.sort_by_key(|log| log[0].time.clone());
-        let log_sets = values.into_iter()
-            .map(|lines|
-                LogSet::from_lines(lines.to_vec())
-            )
+        let log_sets = values
+            .into_iter()
+            .map(|lines| LogSet::from_lines(lines.to_vec()))
             .collect();
         Ok(log_sets)
         // values.into_iter().for_each(|lines| {
@@ -161,7 +155,7 @@ enum Message {
     GoSearch,
     SubmitSearch,
     SearchBackspace,
-    SearchKey(char)
+    SearchKey(char),
 }
 
 fn handle_key(key: event::KeyEvent) -> Option<Message> {
@@ -179,7 +173,7 @@ fn handle_search(key: event::KeyEvent) -> Option<Message> {
         KeyCode::Enter => Some(Message::SubmitSearch),
         KeyCode::Char(c) => Some(Message::SearchKey(c)),
         KeyCode::Backspace => Some(Message::SearchBackspace),
-        _ => None
+        _ => None,
     }
 }
 
@@ -188,8 +182,8 @@ fn handle_event(model: &Model) -> color_eyre::Result<Option<Message>> {
         if let Event::Key(key) = event::read()? {
             if key.kind == event::KeyEventKind::Press {
                 match model.mode {
-                    AppMode::Normal => { return Ok(handle_key(key)) },
-                    AppMode::Search => { return Ok(handle_search(key)) }
+                    AppMode::Normal => return Ok(handle_key(key)),
+                    AppMode::Search => return Ok(handle_search(key)),
                 };
             }
         }
@@ -209,18 +203,14 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
         Message::PrevSet => {
             model.current_item.select_previous();
         }
-        Message::GoSearch => {
-            model.mode = AppMode::Search
-        }
+        Message::GoSearch => model.mode = AppMode::Search,
         Message::SearchKey(char) => {
             model.filter.push(char);
         }
         Message::SearchBackspace => {
             model.filter.pop();
         }
-        Message::SubmitSearch => {
-            model.mode = AppMode::Normal
-        }
+        Message::SubmitSearch => model.mode = AppMode::Normal,
     };
     None
 }
@@ -254,22 +244,22 @@ fn main() -> color_eyre::Result<()> {
 fn view(model: &mut Model, frame: &mut Frame) {
     let layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(vec![
-            Constraint::Percentage(50),
-            Constraint::Percentage(50),
-        ])
+        .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(frame.area());
-    let items: Vec<String> = model.filtered_log_sets().iter().map(|ls| ls.lines[0].text.clone()).collect();
+    let items: Vec<String> = model
+        .filtered_log_sets()
+        .iter()
+        .map(|ls| ls.lines[0].text.clone())
+        .collect();
     let list = List::new(items)
         // .block(Block::bordered().title("List"))
         // .style(Style::default().fg(Color::White))
         .highlight_style(Style::default().fg(Color::Black).bg(Color::White))
         .block(Block::new().borders(Borders::BOTTOM));
-        // frame.render_widget(list, frame.area());
-        // .highlight_symbol(">>");
-        // .repeat_highlight_symbol(true)
-        // .direction(ListDirection::BottomToTop);
-
+    // frame.render_widget(list, frame.area());
+    // .highlight_symbol(">>");
+    // .repeat_highlight_symbol(true)
+    // .direction(ListDirection::BottomToTop);
 
     frame.render_stateful_widget(&list, layout[0], &mut model.current_item);
 
@@ -278,10 +268,13 @@ fn view(model: &mut Model, frame: &mut Frame) {
         .initial_indent("")
         .subsequent_indent("        ");
 
-    let log_lines: Vec<rtLine> = model.current_lines().iter()
-        .flat_map(|line| textwrap::wrap(&line.text, &options))
-        .map(|line| rtLine::from(line.to_string()))
-        .collect();
+    let log_lines: Vec<rtLine> = model.current_lines().map_or_else(Vec::new, |lines| {
+        lines
+            .iter()
+            .flat_map(|line| textwrap::wrap(&line.text, &options))
+            .map(|line| rtLine::from(line.to_string()))
+            .collect()
+    });
     let para = Paragraph::new(log_lines).wrap(Wrap { trim: false });
     frame.render_widget(para, layout[1]);
 
@@ -302,13 +295,14 @@ fn view(model: &mut Model, frame: &mut Frame) {
         ;
         frame.render_widget(popup, popup_area);
     }
-
 }
 
 // The output is wrapped in a Result to allow matching on errors.
 // Returns an Iterator to the Reader of the lines of the file.
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
+where
+    P: AsRef<Path>,
+{
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
