@@ -209,6 +209,7 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
         }
         Message::SearchBackspace => {
             model.filter.pop();
+            model.current_item.select_first();
         }
         Message::SubmitSearch => model.mode = AppMode::Normal,
     };
