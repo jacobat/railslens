@@ -1,3 +1,6 @@
+use ratatui::prelude::*;
+use ratatui::style::Color;
+use ratatui::style::Style;
 use ratatui::widgets::ListState;
 use crossterm::event::KeyCode;
 use crossterm::event::Event;
@@ -15,8 +18,6 @@ use std::collections::HashMap;
 use regex::Regex;
 
 mod tui;
-
-struct ParseLineError;
 
 #[derive(Debug, Clone)]
 struct Line {
@@ -53,6 +54,13 @@ struct Model {
     running_state: RunningState,
     log_sets: Vec<LogSet>,
     current_item: ListState,
+}
+
+impl Model {
+    fn current_lines(&self) -> &Vec<Line> {
+        let current = self.current_item.selected().unwrap();
+        &self.log_sets.get(current).unwrap().lines
+    }
 }
 
 enum ParseError {
@@ -162,8 +170,11 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
 fn main() -> color_eyre::Result<()> {
     tui::install_panic_hook();
     let mut terminal = tui::init_terminal()?;
-    let mut model = Model::default();
-    model.log_sets = lines().unwrap();
+    let mut model = Model {
+        log_sets: lines().unwrap(),
+        ..Default::default()
+    };
+    model.current_item.select_first();
     while model.running_state != RunningState::Done {
         // Render the current view
         terminal.draw(|f| view(&mut model, f))?;
@@ -183,17 +194,28 @@ fn main() -> color_eyre::Result<()> {
 }
 
 fn view(model: &mut Model, frame: &mut Frame) {
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(vec![
+            Constraint::Percentage(50),
+            Constraint::Percentage(50),
+        ])
+        .split(frame.area());
     let items: Vec<String> = model.log_sets.iter().map(|ls| ls.lines[0].text.clone()).collect();
     let list = List::new(items)
         // .block(Block::bordered().title("List"))
         // .style(Style::default().fg(Color::White))
-        // .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
-        .highlight_symbol(">>");
+        .highlight_style(Style::default().fg(Color::Black).bg(Color::White));
+        // .highlight_symbol(">>");
         // .repeat_highlight_symbol(true)
         // .direction(ListDirection::BottomToTop);
 
-    // frame.render_widget(list, frame.area());
-    frame.render_stateful_widget(list, frame.area(), &mut model.current_item);
+
+    frame.render_stateful_widget(&list, layout[0], &mut model.current_item);
+
+    let log_lines = model.current_lines();
+    let log_lines = List::new(log_lines.clone().into_iter().map(|line| line.text));
+    frame.render_widget(log_lines, layout[1]);
 }
 
 // The output is wrapped in a Result to allow matching on errors.
