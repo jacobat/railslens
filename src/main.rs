@@ -24,6 +24,7 @@ use std::collections::HashMap;
 use regex::Regex;
 
 mod tui;
+mod popup;
 
 #[derive(Debug, Clone)]
 struct Line {
@@ -55,17 +56,39 @@ impl LogSet {
     }
 }
 
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+enum AppMode {
+    #[default] Normal,
+    Search,
+}
+
 #[derive(Default, Debug, Clone)]
 struct Model {
     running_state: RunningState,
     log_sets: Vec<LogSet>,
     current_item: ListState,
+    mode: AppMode,
+    filter: String,
 }
 
 impl Model {
     fn current_lines(&self) -> &Vec<Line> {
         let current = self.current_item.selected().unwrap();
-        &self.log_sets.get(current).unwrap().lines
+        &self.filtered_log_sets().get(current).unwrap().lines
+    }
+
+    fn search(&mut self, key: String) {
+        self.filter.push_str(&key)
+    }
+
+    fn filtered_log_sets(&self) -> Vec<&LogSet> {
+        self
+            .log_sets
+            .iter()
+            .filter(|l| l.lines.iter().any(|line|
+                line.text.contains(&self.filter)
+            ))
+            .collect()
     }
 }
 
@@ -135,6 +158,10 @@ enum Message {
     NextSet,
     PrevSet,
     Quit,
+    GoSearch,
+    SubmitSearch,
+    SearchBackspace,
+    SearchKey(char)
 }
 
 fn handle_key(key: event::KeyEvent) -> Option<Message> {
@@ -142,15 +169,28 @@ fn handle_key(key: event::KeyEvent) -> Option<Message> {
         KeyCode::Char('j') => Some(Message::NextSet),
         KeyCode::Char('k') => Some(Message::PrevSet),
         KeyCode::Char('q') => Some(Message::Quit),
+        KeyCode::Char('/') => Some(Message::GoSearch),
         _ => None,
     }
 }
 
-fn handle_event(_: &Model) -> color_eyre::Result<Option<Message>> {
+fn handle_search(key: event::KeyEvent) -> Option<Message> {
+    match key.code {
+        KeyCode::Enter => Some(Message::SubmitSearch),
+        KeyCode::Char(c) => Some(Message::SearchKey(c)),
+        KeyCode::Backspace => Some(Message::SearchBackspace),
+        _ => None
+    }
+}
+
+fn handle_event(model: &Model) -> color_eyre::Result<Option<Message>> {
     if event::poll(Duration::from_millis(250))? {
         if let Event::Key(key) = event::read()? {
             if key.kind == event::KeyEventKind::Press {
-                return Ok(handle_key(key));
+                match model.mode {
+                    AppMode::Normal => { return Ok(handle_key(key)) },
+                    AppMode::Search => { return Ok(handle_search(key)) }
+                };
             }
         }
     }
@@ -168,6 +208,18 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
         }
         Message::PrevSet => {
             model.current_item.select_previous();
+        }
+        Message::GoSearch => {
+            model.mode = AppMode::Search
+        }
+        Message::SearchKey(char) => {
+            model.filter.push(char);
+        }
+        Message::SearchBackspace => {
+            model.filter.pop();
+        }
+        Message::SubmitSearch => {
+            model.mode = AppMode::Normal
         }
     };
     None
@@ -207,7 +259,7 @@ fn view(model: &mut Model, frame: &mut Frame) {
             Constraint::Percentage(50),
         ])
         .split(frame.area());
-    let items: Vec<String> = model.log_sets.iter().map(|ls| ls.lines[0].text.clone()).collect();
+    let items: Vec<String> = model.filtered_log_sets().iter().map(|ls| ls.lines[0].text.clone()).collect();
     let list = List::new(items)
         // .block(Block::bordered().title("List"))
         // .style(Style::default().fg(Color::White))
@@ -232,6 +284,25 @@ fn view(model: &mut Model, frame: &mut Frame) {
         .collect();
     let para = Paragraph::new(log_lines).wrap(Wrap { trim: false });
     frame.render_widget(para, layout[1]);
+
+    if model.mode == AppMode::Search {
+        let area = frame.area();
+        let popup_area = Rect {
+            x: area.width / 4,
+            y: area.height / 2,
+            width: area.width / 2,
+            height: 5,
+        };
+        let popup = popup::Popup::default()
+            .content(model.filter.clone())
+            // .style(Style::new().yellow())
+            .title("Filter")
+        // .title_style(Style::new().white().bold())
+        // .border_style(Style::new().red());
+        ;
+        frame.render_widget(popup, popup_area);
+    }
+
 }
 
 // The output is wrapped in a Result to allow matching on errors.
