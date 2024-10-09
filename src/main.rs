@@ -217,15 +217,24 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
 }
 
 fn main() -> color_eyre::Result<()> {
+    color_eyre::install()?;
     let args = Args::parse();
+    let log_set_result = lines(&args.file);
 
-    tui::install_panic_hook();
-    let mut terminal = tui::init_terminal()?;
+    if log_set_result.is_err() {
+        println!("Could not read file '{}'", &args.file);
+        std::process::exit(1);
+    }
+
+    let log_sets = log_set_result.unwrap();
+
     let mut model = Model {
-        log_sets: lines(&args.file).unwrap(),
+        log_sets,
         ..Default::default()
     };
     model.current_item.select_first();
+    let mut terminal = tui::init_terminal()?;
+
     while model.running_state != RunningState::Done {
         // Render the current view
         terminal.draw(|f| view(&mut model, f))?;
