@@ -256,7 +256,7 @@ fn main() -> color_eyre::Result<()> {
 fn view(model: &mut Model, frame: &mut Frame) {
     let layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints(vec![Constraint::Max(1), Constraint::Fill(1), Constraint::Percentage(50)])
         .split(frame.area());
     let items: Vec<String> = model
         .filtered_log_sets()
@@ -272,10 +272,13 @@ fn view(model: &mut Model, frame: &mut Frame) {
     // .highlight_symbol(">>");
     // .repeat_highlight_symbol(true)
     // .direction(ListDirection::BottomToTop);
+    let help = Paragraph::new("Railslens      j/k = up/down      / = search      q = quit")
+        .style(Style::default().fg(Color::White).bg(Color::Rgb(0, 63, 0)));
 
-    frame.render_stateful_widget(&list, layout[0], &mut model.current_item);
+    frame.render_widget(&help, layout[0]);
+    frame.render_stateful_widget(&list, layout[1], &mut model.current_item);
 
-    let width: usize = layout[1].width.into();
+    let width: usize = layout[2].width.into();
     let options = textwrap::Options::new(width)
         .initial_indent("")
         .subsequent_indent("        ");
@@ -288,7 +291,7 @@ fn view(model: &mut Model, frame: &mut Frame) {
             .collect()
     });
     let para = Paragraph::new(log_lines).wrap(Wrap { trim: false });
-    frame.render_widget(para, layout[1]);
+    frame.render_widget(para, layout[2]);
 
     if model.mode == AppMode::Search {
         let area = frame.area();
