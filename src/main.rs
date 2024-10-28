@@ -101,14 +101,22 @@ impl FromStr for Line {
     type Err = ParseError;
     fn from_str(s: &str) -> LineResult {
         let splits: Vec<&str> = s.split("[").collect();
-        let time: Vec<&str> = splits[1].split(" ").collect();
-        let re: Regex = Regex::new(r"\[([0-9a-f]{32})\]").unwrap();
-        let (_, [uuid]) = re.captures(s).ok_or(ParseError::ParseLineError)?.extract();
-        Ok(Line {
-            uuid: uuid.to_string(),
-            time: time[0].to_string(),
-            text: s.to_string(),
-        })
+        let first_split = splits.get(1);
+        match first_split {
+            Some(v) => {
+                let time: Vec<&str> = v.split(" ").collect();
+                let re: Regex = Regex::new(r"\[([0-9a-f]{32})\]").unwrap();
+                let (_, [uuid]) = re.captures(s).ok_or(ParseError::ParseLineError)?.extract();
+                Ok(Line {
+                    uuid: uuid.to_string(),
+                    time: time[0].to_string(),
+                    text: s.to_string(),
+                })
+            }
+            None => {
+                Err(ParseError::ParseLineError)
+            }
+        }
     }
 }
 
