@@ -1,7 +1,7 @@
 use std::{io::stdout, panic};
 
 use ratatui::{
-    backend::{Backend, CrosstermBackend},
+    backend::CrosstermBackend,
     crossterm::{
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
         ExecutableCommand,
@@ -9,7 +9,7 @@ use ratatui::{
     Terminal,
 };
 
-pub fn init_terminal() -> color_eyre::Result<Terminal<impl Backend>> {
+pub fn init_terminal() -> color_eyre::Result<Terminal<CrosstermBackend<std::io::Stdout>>> {
     stdout().execute(EnterAlternateScreen)?;
     enable_raw_mode()?;
     install_panic_hook();
